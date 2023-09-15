@@ -5,16 +5,19 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.WindowManager
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
     // the website url to render
-    private val myWebsiteURL = ""
+    private val myWebsiteURL: String  = "https://google.com"
 
     // the js function that handles the input
     private val myGlobalJsFunctionForHandlingBarcodeInput: String = "scanFunction"
@@ -55,6 +58,7 @@ class MainActivity : AppCompatActivity() {
 
     // function that calls the javascript function from the global scope
     private fun sendBarcodeDataToWebView(barcodeData: String) {
+        Log.d(TAG, "sendBarcodeDataToWebView")
         webView.evaluateJavascript(
             "javascript: $myGlobalJsFunctionForHandlingBarcodeInput($barcodeData)",
             null
@@ -64,6 +68,7 @@ class MainActivity : AppCompatActivity() {
     // gets called on activity/application start
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
+        Log.d(TAG, "onCreate")
         super.onCreate(savedInstanceState)
 
         // keep screen on as long as app on the foreground
@@ -74,7 +79,12 @@ class MainActivity : AppCompatActivity() {
 
         // sets the WebView configuration
         webView = findViewById<WebView>(R.id.webView).apply {
-            webViewClient = WebViewClient()
+            webViewClient = object: WebViewClient() {
+                override fun shouldOverrideUrlLoading(
+                    view: WebView?,
+                    request: WebResourceRequest?
+                ) = false
+            }
 
             WebView.setWebContentsDebuggingEnabled(true)
 
@@ -87,16 +97,26 @@ class MainActivity : AppCompatActivity() {
 
     // gets called after pausing the application and when application gets focus back
     override fun onResume() {
+        Log.d(TAG, "onResume")
         super.onResume()
+
         if (datawedgeEnabled) {
-            this.registerReceiver(scanBroadcastReceiver, barcodeIntentFilter)
+            Log.d(TAG, "registering scan receiver")
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
+                this.registerReceiver(scanBroadcastReceiver, barcodeIntentFilter)
+            } else {
+                this.registerReceiver(scanBroadcastReceiver, barcodeIntentFilter, RECEIVER_EXPORTED)
+            }
         }
     }
 
     // gets called when application gets pushed back to the backstack
     override fun onPause() {
+        Log.d(TAG, "onPause")
         super.onPause()
+
         if (datawedgeEnabled) {
+            Log.d(TAG, "unregistering scan receiver")
             this.unregisterReceiver(scanBroadcastReceiver)
         }
     }
